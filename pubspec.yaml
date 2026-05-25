@@ -1,0 +1,34 @@
+name: galaxy_sweep
+description: Galaxy sweep puzzle game
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  audioplayers: ^6.6.0
+  flutter_bloc: ^9.1.1
+  google_fonts: ^6.3.2
+  web_socket: ^1.0.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+flutter:
+  uses-material-design: true
+
+  shaders:
+    - shaders/tile_nebula.frag
+    - shaders/tile_stars.frag
+    - shaders/galaxy_explode.frag
+    - shaders/galaxy_reveal.frag
+  assets:
+    - assets/VibeDepot_Yoga.mp3
+    - assets/Happiness_In_Music_Space.mp3
+    - assets/whoosh-clean-fast-bosnow-3-3-00-00.mp3
+    - assets/whoosh-dark-metallic-vadi-sound-1-00-05.mp3
+    - assets/whoosh-boom-stutter-tomas-herudek-1-00-09.mp3
