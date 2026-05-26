@@ -3,14 +3,18 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:galaxy_sweep/render/board_renderer.dart';
+import 'package:galaxy_sweep/render/piece_pip_renderer.dart';
 
 class PieceRenderer {
   const PieceRenderer();
+
+  static const _pipRenderer = PiecePipRenderer();
 
   void paintPieceInFrame(
     ui.Canvas canvas, {
     required TileFrame frame,
     required double cellSize,
+    required double time,
     required double pieceScale,
     required Color accentColor,
     bool lifted = false,
@@ -52,6 +56,7 @@ class PieceRenderer {
       canvas,
       frame: pieceFrame,
       cellSize: cellSize,
+      time: time,
       lifted: lifted,
       value: distanceToNearestGalaxy,
       previousValue: previousDistanceToNearestGalaxy,
@@ -66,6 +71,7 @@ class PieceRenderer {
     ui.Canvas canvas, {
     required TileFrame frame,
     required double cellSize,
+    required double time,
     required bool lifted,
     required int? value,
     required int? previousValue,
@@ -74,51 +80,24 @@ class PieceRenderer {
     required ui.Offset travelVector,
     required double distortion,
   }) {
-    final t = transition.clamp(0.0, 1.0).toDouble();
-
-    if (previousValue != null && previousValue != value && t < 1) {
-      for (final pipCenter in _pipCenters(previousValue)) {
-        final pipPath = _pipPathInFrame(
-          frame,
-          center: pipCenter,
-          radius: (lifted ? 0.062 : 0.056) * (1.0 - t * 0.22),
+    _pipRenderer.paint(
+      canvas,
+      value: value,
+      previousValue: previousValue,
+      transition: transition,
+      cellSize: cellSize,
+      time: time,
+      lifted: lifted,
+      color: accentColor,
+      pointAt: (local) => _sampleFramePoint(
+        frame,
+        _distortedLocalPoint(
+          local,
           travelVector: travelVector,
           distortion: distortion,
-        );
-
-        _paintPipPath(
-          canvas,
-          pipPath,
-          lifted: lifted,
-          color: accentColor,
-          alpha: 1.0 - t,
-        );
-      }
-    }
-
-    if (value != null && value >= 1 && value <= 6) {
-      final scale = previousValue == null || previousValue == value
-          ? 1.0
-          : 0.76 + t * 0.24;
-
-      for (final pipCenter in _pipCenters(value)) {
-        final pipPath = _pipPathInFrame(
-          frame,
-          center: pipCenter,
-          radius: (lifted ? 0.062 : 0.056) * scale,
-          travelVector: travelVector,
-          distortion: distortion,
-        );
-
-        _paintPipPath(
-          canvas,
-          pipPath,
-          lifted: lifted,
-          color: accentColor,
-          alpha: t,
-        );
-      }
-    }
+        ),
+      ),
+    );
   }
 
   void paintPieceOnMesh(
@@ -126,6 +105,7 @@ class PieceRenderer {
     required VertexBoardControlMesh mesh,
     required ui.Offset gridPosition,
     required double cellSize,
+    required double time,
     required double pieceScale,
     required Color accentColor,
     bool lifted = false,
@@ -161,6 +141,7 @@ class PieceRenderer {
       mesh: mesh,
       gridPosition: gridPosition,
       cellSize: cellSize,
+      time: time,
       lifted: lifted,
       lift: lift,
       value: distanceToNearestGalaxy,
@@ -175,6 +156,7 @@ class PieceRenderer {
     required VertexBoardControlMesh mesh,
     required ui.Offset gridPosition,
     required double cellSize,
+    required double time,
     required bool lifted,
     required ui.Offset lift,
     required int? value,
@@ -182,51 +164,23 @@ class PieceRenderer {
     required double transition,
     required Color accentColor,
   }) {
-    final t = transition.clamp(0.0, 1.0).toDouble();
-
-    if (previousValue != null && previousValue != value && t < 1) {
-      for (final pipCenter in _pipCenters(previousValue)) {
-        final pipPath = _pipPathOnMesh(
-          mesh,
-          gridPosition: gridPosition,
-          center: pipCenter,
-          radius: (lifted ? 0.062 : 0.056) * (1.0 - t * 0.22),
-          lift: lift,
-        );
-
-        _paintPipPath(
-          canvas,
-          pipPath,
-          lifted: lifted,
-          color: accentColor,
-          alpha: 1.0 - t,
-        );
-      }
-    }
-
-    if (value != null && value >= 1 && value <= 6) {
-      final scale = previousValue == null || previousValue == value
-          ? 1.0
-          : 0.76 + t * 0.24;
-
-      for (final pipCenter in _pipCenters(value)) {
-        final pipPath = _pipPathOnMesh(
-          mesh,
-          gridPosition: gridPosition,
-          center: pipCenter,
-          radius: (lifted ? 0.062 : 0.056) * scale,
-          lift: lift,
-        );
-
-        _paintPipPath(
-          canvas,
-          pipPath,
-          lifted: lifted,
-          color: accentColor,
-          alpha: t,
-        );
-      }
-    }
+    _pipRenderer.paint(
+      canvas,
+      value: value,
+      previousValue: previousValue,
+      transition: transition,
+      cellSize: cellSize,
+      time: time,
+      lifted: lifted,
+      color: accentColor,
+      pointAt: (local) =>
+          _sampleMeshPoint(
+            mesh,
+            gridPosition.dx + local.dx,
+            gridPosition.dy + local.dy,
+          ) +
+          lift,
+    );
   }
 
   void _paintPieceBody(
@@ -274,30 +228,8 @@ class PieceRenderer {
     );
   }
 
-  void _paintPipPath(
-    ui.Canvas canvas,
-    Path pipPath, {
-    required bool lifted,
-    required Color color,
-    required double alpha,
-  }) {
-    canvas.drawPath(
-      pipPath,
-      Paint()
-        ..isAntiAlias = true
-        ..color = _pipColor(color, lifted: lifted, opacity: alpha)
-        ..blendMode = BlendMode.plus,
-    );
-  }
-
   Color _accentColor(Color color, {required bool lifted, double opacity = 1}) {
     final baseAlpha = lifted ? 0.42 : 0.22;
-
-    return color.withValues(alpha: baseAlpha * opacity);
-  }
-
-  Color _pipColor(Color color, {required bool lifted, double opacity = 1}) {
-    final baseAlpha = lifted ? 0.58 : 0.34;
 
     return color.withValues(alpha: baseAlpha * opacity);
   }
@@ -322,40 +254,6 @@ class PieceRenderer {
         exponent: exponent,
         radius: radius,
       );
-      final point = _sampleFramePoint(
-        frame,
-        _distortedLocalPoint(
-          local,
-          travelVector: travelVector,
-          distortion: distortion,
-        ),
-      );
-
-      if (sample == 0) {
-        path.moveTo(point.dx, point.dy);
-      } else {
-        path.lineTo(point.dx, point.dy);
-      }
-    }
-
-    return path..close();
-  }
-
-  Path _pipPathInFrame(
-    TileFrame frame, {
-    required ui.Offset center,
-    required double radius,
-    required ui.Offset travelVector,
-    required double distortion,
-  }) {
-    final path = Path();
-    const samples = 14;
-
-    for (var sample = 0; sample < samples; sample++) {
-      final angle = sample / samples * math.pi * 2;
-      final local =
-          center +
-          ui.Offset(math.cos(angle) * radius, math.sin(angle) * radius);
       final point = _sampleFramePoint(
         frame,
         _distortedLocalPoint(
@@ -403,63 +301,6 @@ class PieceRenderer {
     }
 
     return path..close();
-  }
-
-  Path _pipPathOnMesh(
-    VertexBoardControlMesh mesh, {
-    required ui.Offset gridPosition,
-    required ui.Offset center,
-    required double radius,
-    required ui.Offset lift,
-  }) {
-    final path = Path();
-    const samples = 14;
-
-    for (var sample = 0; sample < samples; sample++) {
-      final angle = sample / samples * math.pi * 2;
-      final point =
-          _sampleMeshPoint(
-            mesh,
-            gridPosition.dx + center.dx + math.cos(angle) * radius,
-            gridPosition.dy + center.dy + math.sin(angle) * radius,
-          ) +
-          lift;
-
-      if (sample == 0) {
-        path.moveTo(point.dx, point.dy);
-      } else {
-        path.lineTo(point.dx, point.dy);
-      }
-    }
-
-    return path..close();
-  }
-
-  List<ui.Offset> _pipCenters(int value) {
-    const topLeft = ui.Offset(0.36, 0.29);
-    const topRight = ui.Offset(0.64, 0.29);
-    const middleLeft = ui.Offset(0.36, 0.50);
-    const middle = ui.Offset(0.50, 0.50);
-    const middleRight = ui.Offset(0.64, 0.50);
-    const bottomLeft = ui.Offset(0.36, 0.71);
-    const bottomRight = ui.Offset(0.64, 0.71);
-
-    return switch (value) {
-      1 => const [middle],
-      2 => const [topLeft, bottomRight],
-      3 => const [topLeft, middle, bottomRight],
-      4 => const [topLeft, topRight, bottomLeft, bottomRight],
-      5 => const [topLeft, topRight, middle, bottomLeft, bottomRight],
-      6 => const [
-        topLeft,
-        topRight,
-        middleLeft,
-        middleRight,
-        bottomLeft,
-        bottomRight,
-      ],
-      _ => const [],
-    };
   }
 
   ui.Offset _superellipseLocalPoint(

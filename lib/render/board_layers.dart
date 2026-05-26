@@ -70,7 +70,7 @@ class PieceLayer {
   const PieceLayer();
 
   static const _pieceRenderer = PieceRenderer();
-  static const _pipChangeDuration = 0.22;
+  static const _pipChangeDuration = 1.25;
   static const _illegalMovePipColor = Color(0xffff5a66);
   static final _pipAnimations = <int, _PipAnimation>{};
 
@@ -144,6 +144,7 @@ class PieceLayer {
       canvas,
       frame: mesh.frames[piece.cellIndex],
       cellSize: layout.cellSize,
+      time: time,
       pieceScale: renderConfig.pieceScale,
       accentColor: _defaultAccentColor(renderConfig),
       distanceToNearestGalaxy: pips.value,
@@ -182,6 +183,7 @@ class PieceLayer {
       mesh: mesh,
       gridPosition: gridPosition,
       cellSize: layout.cellSize,
+      time: time,
       pieceScale: renderConfig.pieceScale,
       accentColor: _draggingAccentColor(
         board,
@@ -223,6 +225,7 @@ class PieceLayer {
       canvas,
       frame: frame,
       cellSize: layout.cellSize,
+      time: time,
       pieceScale: renderConfig.pieceScale,
       accentColor: _defaultAccentColor(renderConfig),
       lifted: true,
