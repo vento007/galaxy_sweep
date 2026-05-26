@@ -155,6 +155,7 @@ class VertexBoardRenderer {
         topRightColor: mesh.colors[vertexStart + 1],
         bottomLeftColor: mesh.colors[vertexStart + 2],
         bottomRightColor: mesh.colors[vertexStart + 3],
+        time: time,
         morph: morphAt(row, column, time),
         edgeFeather: edgeFeather,
         edgeVignette: edgeVignette,
@@ -180,6 +181,7 @@ class VertexBoardRenderer {
     required ui.Color topRightColor,
     required ui.Color bottomLeftColor,
     required ui.Color bottomRightColor,
+    required double time,
     required VertexTileMorph morph,
     required double edgeFeather,
     required double edgeVignette,
@@ -213,10 +215,9 @@ class VertexBoardRenderer {
     colors.add(centerColor);
 
     for (var sample = 0; sample < tileFanSegments; sample++) {
-      final innerLocal = _morphedTileLocalPoint(
-        morph,
-        sample / tileFanSegments,
-      );
+      final edgeT = sample / tileFanSegments;
+      final innerLocal = _morphedTileLocalPoint(morph, edgeT);
+      final roughness = _edgeVignetteRoughness(innerLocal, edgeT, time);
       final inner = _mapTileLocalPoint(
         topLeft,
         topRight,
@@ -242,15 +243,15 @@ class VertexBoardRenderer {
             innerLocal,
           ),
           edgeVignette,
+          roughness: roughness,
+          alphaScale: 0.40,
         ),
       );
     }
 
     for (var sample = 0; sample < tileFanSegments; sample++) {
-      final innerLocal = _morphedTileLocalPoint(
-        morph,
-        sample / tileFanSegments,
-      );
+      final edgeT = sample / tileFanSegments;
+      final innerLocal = _morphedTileLocalPoint(morph, edgeT);
       final midLocal = ui.Offset.lerp(
         const ui.Offset(0.5, 0.5),
         innerLocal,
@@ -272,12 +273,17 @@ class VertexBoardRenderer {
 
       positions.add(mid);
       colors.add(
-        _tileColorAtLocal(
-          topLeftColor,
-          topRightColor,
-          bottomRightColor,
-          bottomLeftColor,
-          midLocal,
+        _vignetteEdgeColor(
+          _tileColorAtLocal(
+            topLeftColor,
+            topRightColor,
+            bottomRightColor,
+            bottomLeftColor,
+            midLocal,
+          ),
+          edgeVignette,
+          roughness: _edgeVignetteRoughness(innerLocal, edgeT, time),
+          alphaScale: 0.13,
         ),
       );
     }
@@ -397,17 +403,37 @@ class VertexBoardRenderer {
     return ui.Color.lerp(top, bottom, local.dy)!;
   }
 
-  ui.Color _vignetteEdgeColor(ui.Color color, double edgeVignette) {
+  ui.Color _vignetteEdgeColor(
+    ui.Color color,
+    double edgeVignette, {
+    required double roughness,
+    required double alphaScale,
+  }) {
     if (edgeVignette <= 0) {
       return color;
     }
 
     return ui.Color.alphaBlend(
-      const ui.Color(
-        0xff061013,
-      ).withValues(alpha: (edgeVignette * 0.34).clamp(0.0, 0.70)),
+      const ui.Color(0xff061013).withValues(
+        alpha: (edgeVignette * alphaScale * roughness).clamp(0.0, 0.74),
+      ),
       color,
     );
+  }
+
+  double _edgeVignetteRoughness(ui.Offset local, double t, double time) {
+    final centered = local - const ui.Offset(0.5, 0.5);
+    final cornerWeight = (centered.dx.abs() * centered.dy.abs() * 4.8).clamp(
+      0.0,
+      1.0,
+    );
+    final broadWave = math.sin(t * math.pi * 4.0 + time * 0.18) * 0.5 + 0.5;
+    final grain =
+        math.sin(local.dx * 31.0 + local.dy * 43.0 + time * 0.11) * 0.5 + 0.5;
+
+    return (0.68 + broadWave * 0.20 + grain * 0.18 + cornerWeight * 0.26)
+        .clamp(0.58, 1.24)
+        .toDouble();
   }
 }
 
