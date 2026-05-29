@@ -7,7 +7,6 @@ import 'package:galaxy_sweep/game/board/board_layout.dart';
 import 'package:galaxy_sweep/game/cubit/game_cubit.dart';
 import 'package:galaxy_sweep/game/cubit/game_state.dart';
 import 'package:galaxy_sweep/game/overlays/game_overlay.dart';
-import 'package:galaxy_sweep/game/overlays/market_signal_overlay.dart';
 import 'package:galaxy_sweep/game/overlays/render_controls_overlay.dart';
 import 'package:galaxy_sweep/render/board_painter.dart';
 import 'package:galaxy_sweep/render/render_config.dart';
@@ -71,8 +70,10 @@ class GameStage extends StatelessWidget {
                   children: [
                     if (state.isPlaying)
                       GestureDetector(
-                        onPanStart: (details) =>
-                            gameCubit.dragStarted(details.localPosition, layout),
+                        onPanStart: (details) => gameCubit.dragStarted(
+                          details.localPosition,
+                          layout,
+                        ),
                         onPanUpdate: (details) => gameCubit.dragUpdated(
                           details.localPosition,
                           layout,
@@ -85,7 +86,8 @@ class GameStage extends StatelessWidget {
                       board,
                     if (state.isIdle)
                       StartGameOverlay(
-                        onStart: () => gameCubit.startGame(elapsedSeconds.value),
+                        onStart: () =>
+                            gameCubit.startGame(elapsedSeconds.value),
                       ),
                     if (state.isGameOver)
                       GameOverOverlay(
@@ -93,17 +95,13 @@ class GameStage extends StatelessWidget {
                         onRestart: () =>
                             gameCubit.startGame(elapsedSeconds.value),
                       ),
-                    if (state.marketSignal != null)
-                      Positioned.fill(
-                        child: MarketSignalOverlay(
-                          signal: state.marketSignal!,
-                          elapsedSeconds: elapsedSeconds,
-                        ),
-                      ),
                     RenderControlsOverlay(
                       controller: renderConfigController,
                       isOpen: showRenderControls,
                       onToggle: onToggleRenderControls,
+                      signalTriggerMode: state.marketSignalTriggerMode,
+                      onSignalTriggerModeChanged:
+                          gameCubit.setMarketSignalTriggerMode,
                     ),
                   ],
                 );

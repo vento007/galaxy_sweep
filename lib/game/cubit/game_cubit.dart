@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:ui';
 import 'dart:math';
+import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -12,12 +12,13 @@ import 'package:galaxy_sweep/game/board/board_setup.dart';
 import 'package:galaxy_sweep/game/board/drag_target_resolver.dart';
 import 'package:galaxy_sweep/game_config.dart';
 import 'package:galaxy_sweep/models/market_signal.dart';
+import 'package:galaxy_sweep/models/market_signal_trigger_mode.dart';
 import 'package:galaxy_sweep/models/piece_visual_state.dart';
 import 'package:galaxy_sweep/render/galaxy_explosion.dart';
 import 'package:galaxy_sweep/services/market_service.dart';
 
 class GameCubit extends Cubit<GameState> {
-  static const int marketTriggerDivisor = 5;
+  static const double timedMarketSignalSeconds = 15.0;
   GameCubit({
     BoardSetup boardSetup = const BoardSetup(),
     BoardRules boardRules = const BoardRules(),
@@ -41,6 +42,7 @@ class GameCubit extends Cubit<GameState> {
   double _gameStartedAt = 0;
   double _lastTickAt = 0;
   int _explosionsTriggered = 0;
+  int _timedMarketSignalsTriggered = 0;
   int? _lastWholePriceSeen;
 
   void startGame(double now) {
@@ -51,6 +53,7 @@ class GameCubit extends Cubit<GameState> {
     _gameStartedAt = now;
     _lastTickAt = now;
     _explosionsTriggered = 0;
+    _timedMarketSignalsTriggered = 0;
     _lastWholePriceSeen = null;
 
     emit(
@@ -58,6 +61,7 @@ class GameCubit extends Cubit<GameState> {
         phase: const GamePlaying(),
         board: board,
         drag: const DragIdle(),
+        marketSignalTriggerMode: state.marketSignalTriggerMode,
         marketSignal: null,
       ),
     );
@@ -225,6 +229,31 @@ class GameCubit extends Cubit<GameState> {
         }
         _explosionsTriggered++;
       }
+
+      if (state.marketSignalTriggerMode ==
+          MarketSignalTriggerMode.every15Seconds) {
+        final shouldHaveSpawned = elapsed ~/ timedMarketSignalSeconds;
+
+        while (_timedMarketSignalsTriggered < shouldHaveSpawned) {
+          final signalAt =
+              _gameStartedAt +
+              (_timedMarketSignalsTriggered + 1) * timedMarketSignalSeconds;
+          final spawn = _buildMarketSpawn(
+            board,
+            wholePrice: _lastWholePriceSeen ?? 0,
+            startedAt: signalAt,
+            message: _lastWholePriceSeen == null
+                ? 'Timed Galaxy Signal'
+                : 'BTC $_lastWholePriceSeen Signal',
+          );
+          if (spawn != null) {
+            board = spawn.board;
+            nextMarketSignal = spawn.signal;
+            boardChanged = true;
+          }
+          _timedMarketSignalsTriggered++;
+        }
+      }
     }
 
     if (nextMarketSignal != null && !nextMarketSignal.isActiveAt(now)) {
@@ -288,32 +317,17 @@ class GameCubit extends Cubit<GameState> {
     );
   }
 
-  void triggerMarketSpawnPreview() {
-    if (!state.isPlaying) {
+  void setMarketSignalTriggerMode(MarketSignalTriggerMode mode) {
+    if (state.marketSignalTriggerMode == mode) {
       return;
     }
 
-    _triggerMarketSpawn(
-      wholePrice: _lastWholePriceSeen ?? 77500,
-      message: 'Galaxy Signal Preview',
-    );
-  }
-
-  void triggerMarketTickPreview() {
-    if (!state.isPlaying) {
-      return;
-    }
-
-    final base = _lastWholePriceSeen ?? 77399;
-    final wholePrice = base % 5 == 0 ? base + 5 : base + (5 - base % 5);
-
-    _handleMarketTick(
-      MarketTick(
-        price: wholePrice.toDouble(),
-        wholePrice: wholePrice,
-        isDivisibleByFive: true,
-      ),
-    );
+    _timedMarketSignalsTriggered =
+        mode == MarketSignalTriggerMode.every15Seconds && state.isPlaying
+        ? max(0, (_lastTickAt - _gameStartedAt) ~/ timedMarketSignalSeconds)
+        : 0;
+    _lastWholePriceSeen = null;
+    emit(state.copyWith(marketSignalTriggerMode: mode));
   }
 
   BoardModel _setPieceVisualState(
@@ -385,15 +399,22 @@ class GameCubit extends Cubit<GameState> {
   void _handleMarketTick(MarketTick tick) {
     final previousWhole = _lastWholePriceSeen;
     _lastWholePriceSeen = tick.wholePrice;
-    final matchesTrigger = tick.wholePrice % marketTriggerDivisor == 0;
+    final divisor = state.marketSignalTriggerMode.divisor;
 
-    debugPrint('price${tick.wholePrice}, can divide by 5: $matchesTrigger');
+    if (divisor == null) {
+      return;
+    }
+
+    final matchesTrigger = tick.wholePrice % divisor == 0;
+    debugPrint(
+      'price${tick.wholePrice}, can divide by $divisor: $matchesTrigger',
+    );
 
     if (!state.isPlaying || previousWhole == tick.wholePrice) {
       return;
     }
 
-    if (previousWhole == null || !matchesTrigger) {
+    if (!matchesTrigger) {
       return;
     }
 
@@ -404,26 +425,84 @@ class GameCubit extends Cubit<GameState> {
     required int wholePrice,
     String message = 'Hidden Galaxy Detected',
   }) {
-    final board = _boardRules.addRandomHiddenGalaxy(
+    final spawn = _buildMarketSpawn(
       state.board,
+      wholePrice: wholePrice,
+      startedAt: _lastTickAt,
+      message: message,
+    );
+
+    if (spawn == null) {
+      return;
+    }
+
+    emit(state.copyWith(board: spawn.board, marketSignal: spawn.signal));
+  }
+
+  _MarketSpawn? _buildMarketSpawn(
+    BoardModel previousBoard, {
+    required int wholePrice,
+    required double startedAt,
+    required String message,
+  }) {
+    final board = _boardRules.addRandomHiddenGalaxy(
+      previousBoard,
       random: _random,
       maxHiddenGalaxies: galaxiesCount,
     );
 
-    if (identical(board, state.board)) {
-      return;
+    if (identical(board, previousBoard)) {
+      return null;
     }
 
-    emit(
-      state.copyWith(
-        board: board,
-        marketSignal: MarketSignal(
-          startedAt: _lastTickAt,
-          wholePrice: wholePrice,
-          message: message,
-        ),
+    final addedCellIndex = _addedGalaxyCellIndex(previousBoard, board);
+
+    return _MarketSpawn(
+      board: board,
+      signal: MarketSignal(
+        startedAt: startedAt,
+        wholePrice: wholePrice,
+        region: addedCellIndex == null
+            ? null
+            : _marketRegionForCell(addedCellIndex, board.boardSize),
+        message: message,
       ),
     );
+  }
+
+  int? _addedGalaxyCellIndex(BoardModel previousBoard, BoardModel nextBoard) {
+    final previousIds = {
+      for (final galaxy in previousBoard.galaxies) galaxy.id,
+    };
+
+    for (final galaxy in nextBoard.galaxies) {
+      if (!previousIds.contains(galaxy.id)) {
+        return galaxy.cellIndex;
+      }
+    }
+
+    return null;
+  }
+
+  MarketSignalRegion _marketRegionForCell(int cellIndex, int boardSize) {
+    final regionSize = min(boardSize, boardSize >= 8 ? 4 : 3);
+    final maxStart = max(0, boardSize - regionSize);
+    final row = cellIndex ~/ boardSize;
+    final column = cellIndex % boardSize;
+    final minRowStart = max(0, row - regionSize + 1);
+    final maxRowStart = min(row, maxStart);
+    final minColumnStart = max(0, column - regionSize + 1);
+    final maxColumnStart = min(column, maxStart);
+
+    return MarketSignalRegion(
+      startRow: _randomInRange(minRowStart, maxRowStart),
+      startColumn: _randomInRange(minColumnStart, maxColumnStart),
+      size: regionSize,
+    );
+  }
+
+  int _randomInRange(int minValue, int maxValue) {
+    return minValue + _random.nextInt(maxValue - minValue + 1);
   }
 
   @override
@@ -435,4 +514,11 @@ class GameCubit extends Cubit<GameState> {
     }
     return super.close();
   }
+}
+
+class _MarketSpawn {
+  const _MarketSpawn({required this.board, required this.signal});
+
+  final BoardModel board;
+  final MarketSignal signal;
 }

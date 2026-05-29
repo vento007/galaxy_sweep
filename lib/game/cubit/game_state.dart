@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:galaxy_sweep/models/board_model.dart';
 import 'package:galaxy_sweep/models/market_signal.dart';
+import 'package:galaxy_sweep/models/market_signal_trigger_mode.dart';
 
 const _keepMarketSignal = Object();
 
@@ -10,6 +11,7 @@ class GameState {
     required this.phase,
     required this.board,
     required this.drag,
+    this.marketSignalTriggerMode = MarketSignalTriggerMode.divisibleBy5,
     this.marketSignal,
   });
 
@@ -18,6 +20,7 @@ class GameState {
       phase: const GameIdle(),
       board: BoardModel(boardSize: boardSize),
       drag: const DragIdle(),
+      marketSignalTriggerMode: MarketSignalTriggerMode.divisibleBy5,
       marketSignal: null,
     );
   }
@@ -25,6 +28,7 @@ class GameState {
   final GamePhase phase;
   final BoardModel board;
   final DragState drag;
+  final MarketSignalTriggerMode marketSignalTriggerMode;
   final MarketSignal? marketSignal;
 
   bool get isIdle => phase is GameIdle;
@@ -36,12 +40,15 @@ class GameState {
     GamePhase? phase,
     BoardModel? board,
     DragState? drag,
+    MarketSignalTriggerMode? marketSignalTriggerMode,
     Object? marketSignal = _keepMarketSignal,
   }) {
     return GameState(
       phase: phase ?? this.phase,
       board: board ?? this.board,
       drag: drag ?? this.drag,
+      marketSignalTriggerMode:
+          marketSignalTriggerMode ?? this.marketSignalTriggerMode,
       marketSignal: identical(marketSignal, _keepMarketSignal)
           ? this.marketSignal
           : marketSignal as MarketSignal?,

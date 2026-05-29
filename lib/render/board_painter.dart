@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -8,7 +9,9 @@ import 'package:galaxy_sweep/game/board/board_layout.dart';
 import 'package:galaxy_sweep/render/board_mesh_builder.dart';
 import 'package:galaxy_sweep/render/board_renderer.dart';
 import 'package:galaxy_sweep/render/galaxy_explosion.dart';
+import 'package:galaxy_sweep/models/market_signal.dart';
 import 'package:galaxy_sweep/models/piece_visual_state.dart';
+import 'package:galaxy_sweep/render/market_signal_region_renderer.dart';
 import 'package:galaxy_sweep/render/render_config.dart';
 
 class BoardPainter extends CustomPainter {
@@ -33,6 +36,7 @@ class BoardPainter extends CustomPainter {
   final RenderConfig renderConfig;
 
   static const _surfaceLayer = BoardSurfaceLayer();
+  static const _marketSignalLayer = MarketSignalRegionRenderer();
   static const _pieceLayer = PieceLayer();
   static const _blastLayer = BlastLayer();
   static const _meshBuilder = BoardMeshBuilder();
@@ -71,6 +75,12 @@ class BoardPainter extends CustomPainter {
       renderConfig: renderConfig,
       tileNebulaProgram: tileNebulaProgram,
       tileStarsProgram: tileStarsProgram,
+      time: time,
+    );
+    _marketSignalLayer.paint(
+      canvas,
+      layout: layout,
+      signal: state.marketSignal,
       time: time,
     );
     _blastLayer.paintReveals(
@@ -159,7 +169,74 @@ class BoardPainter extends CustomPainter {
       }
     }
 
+    _addMarketSignalInfluences(influences, time);
     return influences;
+  }
+
+  void _addMarketSignalInfluences(List<TileInfluence> influences, double time) {
+    final signal = state.marketSignal;
+    final region = signal?.region;
+    if (signal == null || region == null) {
+      return;
+    }
+
+    final age = (time - signal.startedAt).clamp(
+      0.0,
+      MarketSignal.durationSeconds,
+    );
+    final progress = age / MarketSignal.durationSeconds;
+    if (progress >= 1) {
+      return;
+    }
+
+    final appear = Curves.easeOutCubic.transform(
+      (progress / 0.16).clamp(0.0, 1.0).toDouble(),
+    );
+    final disappear =
+        1 -
+        Curves.easeInCubic.transform(
+          ((progress - 0.70) / 0.30).clamp(0.0, 1.0).toDouble(),
+        );
+    final fade = (appear * disappear).clamp(0.0, 1.0).toDouble();
+    final rect = _marketSignalRegionRect(region);
+    final wave = ui.Offset(
+      math.sin(age * 2.4) * layout.cellSize * 0.26,
+      math.cos(age * 1.8) * layout.cellSize * 0.16,
+    );
+
+    influences.add(
+      TileInfluence(
+        center: rect.center + wave,
+        strength: (0.76 + math.sin(age * 3.1) * 0.20) * fade,
+        radiusCells: region.size * 1.18,
+        maxPullCells: 0.11,
+      ),
+    );
+    influences.add(
+      TileInfluence(
+        center: ui.Offset(
+          rect.left + rect.width * (0.28 + math.sin(age * 1.5) * 0.10),
+          rect.top + rect.height * (0.58 + math.cos(age * 1.2) * 0.08),
+        ),
+        strength: 0.42 * fade,
+        radiusCells: region.size * 0.82,
+        maxPullCells: 0.075,
+      ),
+    );
+  }
+
+  ui.Rect _marketSignalRegionRect(MarketSignalRegion region) {
+    final endRow = region.startRow + region.size - 1;
+    final endColumn = region.startColumn + region.size - 1;
+    final topLeft = layout.rectForCell(region.startRow, region.startColumn);
+    final bottomRight = layout.rectForCell(endRow, endColumn);
+
+    return ui.Rect.fromLTRB(
+      topLeft.left,
+      topLeft.top,
+      bottomRight.right,
+      bottomRight.bottom,
+    );
   }
 
   void _logMeshOnLayoutChange(ui.Size size, VertexBoardControlMesh mesh) {

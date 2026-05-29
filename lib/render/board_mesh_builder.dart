@@ -189,28 +189,32 @@ class BoardMeshBuilder {
       return Offset.zero;
     }
 
-    final radius = cellSize * 2.35;
-    final maxPull = cellSize * 0.039 * scale;
     var total = Offset.zero;
+    var maxTotalPull = 0.0;
 
     for (final influence in influences) {
+      final radius = cellSize * influence.radiusCells;
+      final maxPull = cellSize * influence.maxPullCells * scale;
       final delta = influence.center - point;
       final distance = delta.distance;
       if (distance <= 0.0001 || distance >= radius) {
         continue;
       }
 
+      if (maxPull > maxTotalPull) {
+        maxTotalPull = maxPull;
+      }
       final proximity = 1.0 - distance / radius;
       final falloff = proximity * proximity * (3.0 - 2.0 * proximity);
       final pull = maxPull * influence.strength.clamp(0.0, 1.0) * falloff;
       total += delta / distance * pull;
     }
 
-    if (total.distance <= maxPull) {
+    if (maxTotalPull <= 0 || total.distance <= maxTotalPull) {
       return total;
     }
 
-    return total / total.distance * maxPull;
+    return total / total.distance * maxTotalPull;
   }
 
   List<Color> _tileColors({
@@ -289,8 +293,15 @@ class BoardMeshBuilder {
 }
 
 class TileInfluence {
-  const TileInfluence({required this.center, required this.strength});
+  const TileInfluence({
+    required this.center,
+    required this.strength,
+    this.radiusCells = 2.35,
+    this.maxPullCells = 0.039,
+  });
 
   final Offset center;
   final double strength;
+  final double radiusCells;
+  final double maxPullCells;
 }

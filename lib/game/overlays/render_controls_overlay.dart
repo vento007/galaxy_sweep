@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:galaxy_sweep/controllers/render_config_controller.dart';
+import 'package:galaxy_sweep/models/market_signal_trigger_mode.dart';
 import 'package:galaxy_sweep/render/render_config.dart';
 
 class RenderControlsOverlay extends StatelessWidget {
@@ -8,13 +9,15 @@ class RenderControlsOverlay extends StatelessWidget {
     required this.controller,
     required this.isOpen,
     required this.onToggle,
-    this.onTestMarketTick,
+    required this.signalTriggerMode,
+    required this.onSignalTriggerModeChanged,
   });
 
   final RenderConfigController controller;
   final bool isOpen;
   final VoidCallback onToggle;
-  final VoidCallback? onTestMarketTick;
+  final MarketSignalTriggerMode signalTriggerMode;
+  final ValueChanged<MarketSignalTriggerMode> onSignalTriggerModeChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -78,6 +81,11 @@ class RenderControlsOverlay extends StatelessWidget {
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
+                                    _SignalModeSelector(
+                                      value: signalTriggerMode,
+                                      onChanged: onSignalTriggerModeChanged,
+                                    ),
+                                    const SizedBox(height: 8),
                                     _PaletteSelector(
                                       value: config.tileColorPalette,
                                       onChanged: (palette) => controller.update(
@@ -224,36 +232,6 @@ class RenderControlsOverlay extends StatelessWidget {
                                         ),
                                       ),
                                     ),
-                                    if (onTestMarketTick != null) ...[
-                                      const SizedBox(height: 8),
-                                      FilledButton(
-                                        onPressed: onTestMarketTick,
-                                        style: FilledButton.styleFrom(
-                                          backgroundColor: const Color(
-                                            0xff5a82ff,
-                                          ),
-                                          foregroundColor: const Color(
-                                            0xffeef3ff,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                          ),
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 12,
-                                          ),
-                                        ),
-                                        child: const Text(
-                                          'TestBTC',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w900,
-                                            letterSpacing: 0,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
                                   ],
                                 ),
                               ),
@@ -266,6 +244,23 @@ class RenderControlsOverlay extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SignalModeSelector extends StatelessWidget {
+  const _SignalModeSelector({required this.value, required this.onChanged});
+
+  final MarketSignalTriggerMode value;
+  final ValueChanged<MarketSignalTriggerMode> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return _CompactDropdown<MarketSignalTriggerMode>(
+      value: value,
+      items: MarketSignalTriggerMode.values,
+      labelFor: (mode) => 'Signal: ${mode.label}',
+      onChanged: onChanged,
     );
   }
 }
@@ -322,6 +317,33 @@ class _PaletteSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return _CompactDropdown<TileColorPalette>(
+      value: value,
+      items: TileColorPalette.values,
+      labelFor: (palette) => palette.label,
+      leadingFor: (palette) => _PaletteSwatch(palette: palette),
+      onChanged: onChanged,
+    );
+  }
+}
+
+class _CompactDropdown<T> extends StatelessWidget {
+  const _CompactDropdown({
+    required this.value,
+    required this.items,
+    required this.labelFor,
+    required this.onChanged,
+    this.leadingFor,
+  });
+
+  final T value;
+  final List<T> items;
+  final String Function(T item) labelFor;
+  final Widget Function(T item)? leadingFor;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.05),
@@ -331,7 +353,7 @@ class _PaletteSelector extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10),
         child: DropdownButtonHideUnderline(
-          child: DropdownButton<TileColorPalette>(
+          child: DropdownButton<T>(
             value: value,
             isExpanded: true,
             dropdownColor: const Color(0xff101518),
@@ -343,15 +365,19 @@ class _PaletteSelector extends StatelessWidget {
               letterSpacing: 0,
             ),
             items: [
-              for (final palette in TileColorPalette.values)
+              for (final item in items)
                 DropdownMenuItem(
-                  value: palette,
-                  child: _PaletteLabel(palette: palette),
+                  value: item,
+                  child: _DropdownLabel<T>(
+                    item: item,
+                    labelFor: labelFor,
+                    leadingFor: leadingFor,
+                  ),
                 ),
             ],
-            onChanged: (palette) {
-              if (palette != null) {
-                onChanged(palette);
+            onChanged: (item) {
+              if (item != null) {
+                onChanged(item);
               }
             },
           ),
@@ -361,32 +387,50 @@ class _PaletteSelector extends StatelessWidget {
   }
 }
 
-class _PaletteLabel extends StatelessWidget {
-  const _PaletteLabel({required this.palette});
+class _DropdownLabel<T> extends StatelessWidget {
+  const _DropdownLabel({
+    required this.item,
+    required this.labelFor,
+    this.leadingFor,
+  });
+
+  final T item;
+  final String Function(T item) labelFor;
+  final Widget Function(T item)? leadingFor;
+
+  @override
+  Widget build(BuildContext context) {
+    final leading = leadingFor?.call(item);
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (leading != null) ...[leading, const SizedBox(width: 6)],
+        Text(labelFor(item)),
+      ],
+    );
+  }
+}
+
+class _PaletteSwatch extends StatelessWidget {
+  const _PaletteSwatch({required this.palette});
 
   final TileColorPalette palette;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              colors: [
-                palette.colors.first,
-                palette.colors[palette.colors.length ~/ 2],
-                palette.colors.last,
-              ],
-            ),
-          ),
-          child: const SizedBox(width: 8, height: 8),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: [
+            palette.colors.first,
+            palette.colors[palette.colors.length ~/ 2],
+            palette.colors.last,
+          ],
         ),
-        const SizedBox(width: 6),
-        Text(palette.label),
-      ],
+      ),
+      child: const SizedBox(width: 8, height: 8),
     );
   }
 }
