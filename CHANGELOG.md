@@ -8,3 +8,4 @@
 - Passed the selected palette through to the tile nebula shader.
 - Added a render control for comparing the original tile shape with the
   squircle variant.
+- Added render controls for tile energy and tile energy speed.

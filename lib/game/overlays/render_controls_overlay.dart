@@ -97,6 +97,24 @@ class RenderControlsOverlay extends StatelessWidget {
                                     ),
                                     const SizedBox(height: 8),
                                     _RenderSlider(
+                                      label: 'Energy',
+                                      value: config.tileEnergyAmount,
+                                      max: 1,
+                                      onChanged: (value) => controller.update(
+                                        config.copyWith(
+                                          tileEnergyAmount: value,
+                                        ),
+                                      ),
+                                    ),
+                                    _RenderSlider(
+                                      label: 'EnergySpd',
+                                      value: config.tileEnergySpeed,
+                                      max: 2,
+                                      onChanged: (value) => controller.update(
+                                        config.copyWith(tileEnergySpeed: value),
+                                      ),
+                                    ),
+                                    _RenderSlider(
                                       label: 'Accent',
                                       value: config.piecePipColorPhase,
                                       max: 1,

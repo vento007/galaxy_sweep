@@ -15,6 +15,8 @@ class BoardMeshBuilder {
     required BoardLayout layout,
     required double time,
     required TileColorPalette palette,
+    required double energyAmount,
+    required double energySpeed,
     required double surfaceBoost,
     required List<ActiveBlast> blasts,
     required List<TileInfluence> influences,
@@ -22,6 +24,8 @@ class BoardMeshBuilder {
     final positions = <Offset>[];
     final colors = <Color>[];
     final frames = <TileFrame>[];
+    final energyTime = time * energySpeed.clamp(0.0, 2.0);
+    final energyStrength = energyAmount.clamp(0.0, 1.0).toDouble();
 
     for (final cell in board.cells) {
       final row = cell.row;
@@ -29,14 +33,15 @@ class BoardMeshBuilder {
       final index = board.findIndex(row, column);
       final u = (column + 0.5) / board.boardSize;
       final v = (row + 0.5) / board.boardSize;
-      final energy = _tileEnergy(
+      final rawEnergy = _tileEnergy(
         row: row,
         column: column,
         u: u,
         v: v,
-        time: time,
+        time: energyTime,
         revealed: board.isGalaxyRevealedAtCell(index),
       );
+      final energy = 0.55 + (rawEnergy - 0.55) * energyStrength;
 
       final frame = _tileFrame(
         layout: layout,

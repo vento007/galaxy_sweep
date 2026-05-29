@@ -137,6 +137,8 @@ class RenderConfig {
     this.pieceTileLag = 0.2,
     this.tileColorPalette = TileColorPalette.galaxy,
     this.useSquircleTiles = true,
+    this.tileEnergyAmount = 0.90,
+    this.tileEnergySpeed = 1.0,
     this.tileSurfaceBoost = 0.35,
     this.tileVignette = 1.10,
     this.tileGlowIntensity = 0.1,
@@ -156,6 +158,8 @@ class RenderConfig {
   final double pieceTileLag;
   final TileColorPalette tileColorPalette;
   final bool useSquircleTiles;
+  final double tileEnergyAmount;
+  final double tileEnergySpeed;
   final double tileSurfaceBoost;
   final double tileVignette;
   final double tileGlowIntensity;
@@ -175,6 +179,8 @@ class RenderConfig {
     double? pieceTileLag,
     TileColorPalette? tileColorPalette,
     bool? useSquircleTiles,
+    double? tileEnergyAmount,
+    double? tileEnergySpeed,
     double? tileSurfaceBoost,
     double? tileVignette,
     double? tileGlowIntensity,
@@ -194,6 +200,8 @@ class RenderConfig {
       pieceTileLag: pieceTileLag ?? this.pieceTileLag,
       tileColorPalette: tileColorPalette ?? this.tileColorPalette,
       useSquircleTiles: useSquircleTiles ?? this.useSquircleTiles,
+      tileEnergyAmount: tileEnergyAmount ?? this.tileEnergyAmount,
+      tileEnergySpeed: tileEnergySpeed ?? this.tileEnergySpeed,
       tileSurfaceBoost: tileSurfaceBoost ?? this.tileSurfaceBoost,
       tileVignette: tileVignette ?? this.tileVignette,
       tileGlowIntensity: tileGlowIntensity ?? this.tileGlowIntensity,

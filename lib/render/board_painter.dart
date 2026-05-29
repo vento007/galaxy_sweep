@@ -54,6 +54,8 @@ class BoardPainter extends CustomPainter {
       layout: layout,
       time: time,
       palette: renderConfig.tileColorPalette,
+      energyAmount: renderConfig.tileEnergyAmount,
+      energySpeed: renderConfig.tileEnergySpeed,
       surfaceBoost: renderConfig.tileSurfaceBoost,
       blasts: blasts,
       influences: influences,
