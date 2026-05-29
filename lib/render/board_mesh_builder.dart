@@ -5,25 +5,16 @@ import 'package:galaxy_sweep/game/board/board_layout.dart';
 import 'package:galaxy_sweep/models/board_model.dart';
 import 'package:galaxy_sweep/render/board_renderer.dart';
 import 'package:galaxy_sweep/render/galaxy_explosion.dart';
+import 'package:galaxy_sweep/render/render_config.dart';
 
 class BoardMeshBuilder {
   const BoardMeshBuilder();
-
-  static const _palette = [
-    Color(0xff6b214d),
-    Color(0xff8b4737),
-    Color(0xff896b37),
-    Color(0xff477a54),
-    Color(0xff047a71),
-    Color(0xff195f7a),
-    Color(0xff3c4a74),
-    Color(0xff56325f),
-  ];
 
   VertexBoardControlMesh build({
     required BoardModel board,
     required BoardLayout layout,
     required double time,
+    required TileColorPalette palette,
     required double surfaceBoost,
     required List<ActiveBlast> blasts,
     required List<TileInfluence> influences,
@@ -70,6 +61,7 @@ class BoardMeshBuilder {
           v: v,
           time: time,
           energy: energy,
+          palette: palette.colors,
           surfaceBoost: surfaceBoost,
         ),
       );
@@ -140,28 +132,32 @@ class BoardMeshBuilder {
     );
     final center = baseCenter + centerPull;
 
-    final topLeft = center +
+    final topLeft =
+        center +
         Offset(-halfExtent - skew, -halfExtent) +
         _influenceOffset(
           center + Offset(-halfExtent - skew, -halfExtent),
           cellSize: cellSize,
           influences: influences,
         );
-    final topRight = center +
+    final topRight =
+        center +
         Offset(halfExtent, -halfExtent + skew) +
         _influenceOffset(
           center + Offset(halfExtent, -halfExtent + skew),
           cellSize: cellSize,
           influences: influences,
         );
-    final bottomLeft = center +
+    final bottomLeft =
+        center +
         Offset(-halfExtent, halfExtent - skew) +
         _influenceOffset(
           center + Offset(-halfExtent, halfExtent - skew),
           cellSize: cellSize,
           influences: influences,
         );
-    final bottomRight = center +
+    final bottomRight =
+        center +
         Offset(halfExtent + skew, halfExtent) +
         _influenceOffset(
           center + Offset(halfExtent + skew, halfExtent),
@@ -201,8 +197,7 @@ class BoardMeshBuilder {
 
       final proximity = 1.0 - distance / radius;
       final falloff = proximity * proximity * (3.0 - 2.0 * proximity);
-      final pull =
-          maxPull * influence.strength.clamp(0.0, 1.0) * falloff;
+      final pull = maxPull * influence.strength.clamp(0.0, 1.0) * falloff;
       total += delta / distance * pull;
     }
 
@@ -218,6 +213,7 @@ class BoardMeshBuilder {
     required double v,
     required double time,
     required double energy,
+    required List<Color> palette,
     required double surfaceBoost,
   }) {
     final huePosition =
@@ -225,6 +221,7 @@ class BoardMeshBuilder {
     final baseColor = _samplePalette(
       huePosition,
       _boostAlpha(0.64 + energy * 0.30, surfaceBoost),
+      palette,
     );
 
     return [
@@ -240,6 +237,7 @@ class BoardMeshBuilder {
         _samplePalette(
           huePosition + 0.08,
           _boostAlpha(0.56 + energy * 0.28, surfaceBoost),
+          palette,
         ),
         surfaceBoost,
       ),
@@ -247,6 +245,7 @@ class BoardMeshBuilder {
         _samplePalette(
           huePosition + 0.15,
           _boostAlpha(0.62 + energy * 0.30, surfaceBoost),
+          palette,
         ),
         surfaceBoost,
       ),
@@ -270,25 +269,22 @@ class BoardMeshBuilder {
     return alpha + (1 - alpha) * boost;
   }
 
-  Color _samplePalette(double value, double alpha) {
-    final scaled = value * _palette.length;
-    final lower = scaled.floor() % _palette.length;
-    final upper = (lower + 1) % _palette.length;
+  Color _samplePalette(double value, double alpha, List<Color> palette) {
+    final scaled = value * palette.length;
+    final lower = scaled.floor() % palette.length;
+    final upper = (lower + 1) % palette.length;
     final t = scaled - scaled.floor();
 
     return Color.lerp(
-      _palette[lower],
-      _palette[upper],
+      palette[lower],
+      palette[upper],
       t,
     )!.withValues(alpha: alpha.clamp(0.0, 1.0));
   }
 }
 
 class TileInfluence {
-  const TileInfluence({
-    required this.center,
-    required this.strength,
-  });
+  const TileInfluence({required this.center, required this.strength});
 
   final Offset center;
   final double strength;

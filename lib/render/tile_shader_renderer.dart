@@ -15,6 +15,7 @@ class TileShaderRenderer {
     required ui.FragmentProgram? program,
     required List<ActiveBlast> blasts,
     required double time,
+    required double paletteIndex,
     required double gapFraction,
     required double glowIntensity,
     required double nebulaIntensity,
@@ -44,7 +45,7 @@ class TileShaderRenderer {
       ..setFloat(uniform++, mesh.boardRect.width)
       ..setFloat(uniform++, mesh.boardRect.height)
       ..setFloat(uniform++, time)
-      ..setFloat(uniform++, 0)
+      ..setFloat(uniform++, paletteIndex)
       ..setFloat(uniform++, mesh.dimension.toDouble())
       ..setFloat(uniform++, glowIntensity)
       ..setFloat(uniform++, nebulaIntensity)
@@ -62,8 +63,10 @@ class TileShaderRenderer {
           ((blast.center.dy - mesh.boardRect.top) / mesh.boardRect.height)
               .clamp(0.0, 1.0),
         );
-        final strength =
-            math.sin(blast.progress * math.pi).clamp(0.0, 1.0).toDouble();
+        final strength = math
+            .sin(blast.progress * math.pi)
+            .clamp(0.0, 1.0)
+            .toDouble();
 
         shader
           ..setFloat(uniform++, boardUv.dx)

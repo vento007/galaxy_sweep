@@ -89,12 +89,14 @@ class VertexBoardRenderer {
     double time, {
     required VertexTileMorphProvider morphAt,
     double edgeVignette = 0,
+    bool useSquircleTiles = false,
   }) {
     final geometry = buildTileGeometry(
       mesh,
       time,
       morphAt: morphAt,
       edgeVignette: edgeVignette,
+      useSquircleTiles: useSquircleTiles,
     );
 
     if (!geometry.isDrawable) {
@@ -118,6 +120,7 @@ class VertexBoardRenderer {
     double time, {
     required VertexTileMorphProvider morphAt,
     double edgeVignette = 0,
+    bool useSquircleTiles = false,
   }) {
     final positions = <ui.Offset>[];
     final colors = <ui.Color>[];
@@ -159,6 +162,7 @@ class VertexBoardRenderer {
         morph: morphAt(row, column, time),
         edgeFeather: edgeFeather,
         edgeVignette: edgeVignette,
+        useSquircleTiles: useSquircleTiles,
       );
     }
 
@@ -185,6 +189,7 @@ class VertexBoardRenderer {
     required VertexTileMorph morph,
     required double edgeFeather,
     required double edgeVignette,
+    required bool useSquircleTiles,
   }) {
     const centerLocal = ui.Offset(0.5, 0.5);
     final center = _mapTileLocalPoint(
@@ -216,7 +221,7 @@ class VertexBoardRenderer {
 
     for (var sample = 0; sample < tileFanSegments; sample++) {
       final edgeT = sample / tileFanSegments;
-      final innerLocal = _morphedTileLocalPoint(morph, edgeT);
+      final innerLocal = _morphedTileLocalPoint(morph, edgeT, useSquircleTiles);
       final roughness = _edgeVignetteRoughness(innerLocal, edgeT, time);
       final inner = _mapTileLocalPoint(
         topLeft,
@@ -251,7 +256,7 @@ class VertexBoardRenderer {
 
     for (var sample = 0; sample < tileFanSegments; sample++) {
       final edgeT = sample / tileFanSegments;
-      final innerLocal = _morphedTileLocalPoint(morph, edgeT);
+      final innerLocal = _morphedTileLocalPoint(morph, edgeT, useSquircleTiles);
       final midLocal = ui.Offset.lerp(
         const ui.Offset(0.5, 0.5),
         innerLocal,
@@ -292,6 +297,7 @@ class VertexBoardRenderer {
       final innerLocal = _morphedTileLocalPoint(
         morph,
         sample / tileFanSegments,
+        useSquircleTiles,
       );
       final outerLocal = _expandTileLocalFromCenter(innerLocal, edgeFeather);
       final outer = _mapTileLocalPoint(
@@ -337,18 +343,34 @@ class VertexBoardRenderer {
     }
   }
 
-  ui.Offset _morphedTileLocalPoint(VertexTileMorph morph, double t) {
+  ui.Offset _morphedTileLocalPoint(
+    VertexTileMorph morph,
+    double t,
+    bool useSquircleTiles,
+  ) {
     final morphAmount = morph.amount.clamp(0.0, 1.0).toDouble();
     final easedMorph = Curves.easeOutCubic.transform(morphAmount);
-    final from = _tileShapePoint(VertexTileShape.roundedSquare, t);
-    final to = _tileShapePoint(morph.shape, t);
+    final from = _tileShapePoint(
+      VertexTileShape.roundedSquare,
+      t,
+      useSquircleTiles,
+    );
+    final to = _tileShapePoint(morph.shape, t, useSquircleTiles);
 
     return ui.Offset.lerp(from, to, easedMorph)!;
   }
 
-  ui.Offset _tileShapePoint(VertexTileShape shape, double t) {
+  ui.Offset _tileShapePoint(
+    VertexTileShape shape,
+    double t,
+    bool useSquircleTiles,
+  ) {
     return switch (shape) {
-      VertexTileShape.roundedSquare => _superellipsePoint(t, 5.4, 0.48),
+      VertexTileShape.roundedSquare => _superellipsePoint(
+        t,
+        useSquircleTiles ? 4.0 : 5.4,
+        0.48,
+      ),
       VertexTileShape.circle => _superellipsePoint(t, 2.0, 0.47),
     };
   }

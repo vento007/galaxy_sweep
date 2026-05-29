@@ -18,7 +18,8 @@ import 'package:galaxy_sweep/render/tile_shader_renderer.dart';
 class BoardSurfaceLayer {
   const BoardSurfaceLayer();
 
-  static const _renderer = VertexBoardRenderer();
+  static const _defaultRenderer = VertexBoardRenderer();
+  static const _squircleRenderer = VertexBoardRenderer(tileFanSegments: 48);
   static const _shaderRenderer = TileShaderRenderer();
 
   void paint(
@@ -32,12 +33,17 @@ class BoardSurfaceLayer {
     required ui.FragmentProgram? tileStarsProgram,
     required double time,
   }) {
-    _renderer.paintTiles(
+    final renderer = renderConfig.useSquircleTiles
+        ? _squircleRenderer
+        : _defaultRenderer;
+
+    renderer.paintTiles(
       canvas,
       mesh,
       0,
       morphAt: (row, column, time) => VertexTileMorph.none,
       edgeVignette: renderConfig.tileVignette,
+      useSquircleTiles: renderConfig.useSquircleTiles,
     );
 
     _shaderRenderer.paintNebula(
@@ -47,6 +53,7 @@ class BoardSurfaceLayer {
       program: tileNebulaProgram,
       blasts: blasts,
       time: time,
+      paletteIndex: renderConfig.tileColorPalette.shaderIndex,
       gapFraction: (layout.gap / layout.cellSize).clamp(0.0, 0.48),
       glowIntensity: renderConfig.tileGlowIntensity,
       nebulaIntensity: renderConfig.tileNebulaIntensity,
