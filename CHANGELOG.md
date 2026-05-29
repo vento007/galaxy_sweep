@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.1+4
+
+- Updated the start and game-over overlays to use the signal-panel visual style.
+
 ## 1.2.0+3
 
 - Replaced the centered market-spawn notification with a board-region signal

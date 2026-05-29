@@ -86,11 +86,13 @@ class GameStage extends StatelessWidget {
                       board,
                     if (state.isIdle)
                       StartGameOverlay(
+                        elapsedSeconds: elapsedSeconds,
                         onStart: () =>
                             gameCubit.startGame(elapsedSeconds.value),
                       ),
                     if (state.isGameOver)
                       GameOverOverlay(
+                        elapsedSeconds: elapsedSeconds,
                         score: state.score,
                         onRestart: () =>
                             gameCubit.startGame(elapsedSeconds.value),

@@ -1,28 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:galaxy_sweep/game/overlays/signal_panel_painter.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class StartGameOverlay extends StatelessWidget {
-  const StartGameOverlay({super.key, required this.onStart});
+  const StartGameOverlay({
+    super.key,
+    required this.elapsedSeconds,
+    required this.onStart,
+  });
 
+  final ValueNotifier<double> elapsedSeconds;
   final VoidCallback onStart;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.black.withValues(alpha: 0.34),
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const _GalaxySweepWordmark(),
-              const SizedBox(height: 28),
-              _OverlayActionButton(label: 'Start Game', onPressed: onStart),
-            ],
-          ),
-        ),
-      ),
+    return GameOverlayPanel(
+      elapsedSeconds: elapsedSeconds,
+      title: 'Galaxy Sweep',
+      subtitle: 'signal field ready',
+      actionLabel: 'Start Game',
+      onAction: onStart,
     );
   }
 }
@@ -30,16 +27,19 @@ class StartGameOverlay extends StatelessWidget {
 class GameOverOverlay extends StatelessWidget {
   const GameOverOverlay({
     super.key,
+    required this.elapsedSeconds,
     required this.score,
     required this.onRestart,
   });
 
+  final ValueNotifier<double> elapsedSeconds;
   final int score;
   final VoidCallback onRestart;
 
   @override
   Widget build(BuildContext context) {
     return GameOverlayPanel(
+      elapsedSeconds: elapsedSeconds,
       title: 'GAME OVER',
       subtitle: '$score galaxies found',
       actionLabel: 'Restart',
@@ -51,12 +51,14 @@ class GameOverOverlay extends StatelessWidget {
 class GameOverlayPanel extends StatelessWidget {
   const GameOverlayPanel({
     super.key,
+    required this.elapsedSeconds,
     required this.title,
     required this.subtitle,
     required this.actionLabel,
     required this.onAction,
   });
 
+  final ValueNotifier<double> elapsedSeconds;
   final String title;
   final String subtitle;
   final String actionLabel;
@@ -65,62 +67,54 @@ class GameOverlayPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.black.withValues(alpha: 0.38),
+      color: Colors.black.withValues(alpha: 0.20),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 360),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.russoOne(
-                    color: Color(0xfff5fffb),
-                    fontSize: 32,
-                    letterSpacing: 0,
+          constraints: const BoxConstraints(maxWidth: 390),
+          child: ValueListenableBuilder<double>(
+            valueListenable: elapsedSeconds,
+            builder: (context, time, child) {
+              return CustomPaint(
+                painter: SignalPanelPainter(time: time),
+                child: child,
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(30, 30, 30, 28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.russoOne(
+                      color: const Color(0xfff5fffb),
+                      fontSize: 34,
+                      letterSpacing: 0,
+                      shadows: const [
+                        Shadow(color: Color(0xff26f2df), blurRadius: 18),
+                        Shadow(color: Color(0xff5a7dff), blurRadius: 34),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  subtitle,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.68),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0,
+                  const SizedBox(height: 9),
+                  Text(
+                    subtitle,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.70),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 26),
-                _OverlayActionButton(label: actionLabel, onPressed: onAction),
-              ],
+                  const SizedBox(height: 28),
+                  _OverlayActionButton(label: actionLabel, onPressed: onAction),
+                ],
+              ),
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _GalaxySweepWordmark extends StatelessWidget {
-  const _GalaxySweepWordmark();
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      'Galaxy Sweep',
-      textAlign: TextAlign.center,
-      style: GoogleFonts.russoOne(
-        color: Color(0xfff5fffb),
-        fontSize: 42,
-        letterSpacing: 0,
-        shadows: const [
-          Shadow(color: Color(0xff26f2df), blurRadius: 18),
-          Shadow(color: Color(0xff5a7dff), blurRadius: 34),
-        ],
       ),
     );
   }
